@@ -15,3 +15,6 @@ The first workflow/build is experimental and may fail due to native build resour
 
 ## Current scope
 This first version changes touch input and a reversible audio buffer setting. It does not implement arbitrary movement of all buttons, a guaranteed sound decoder fix, or measured FPS improvement. The source script fails if its pinned upstream anchors differ.
+
+## Build status
+Repository renamed for compatibility with Windows GitHub Actions runners. Initial native-build validation is underway; APK availability depends on the workflow succeeding.
