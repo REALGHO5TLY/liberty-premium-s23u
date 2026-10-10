@@ -56,6 +56,9 @@ jobs:
       - name: Install required SDK and NDK
         shell: pwsh
         run: |
+          # PowerShell needs a native Windows JAVA_HOME; Git Bash steps use /c paths.
+          $env:JAVA_HOME = $env:JAVA_HOME_17_X64
+          $env:ANDROID_HOME = $env:ANDROID_SDK_ROOT
           $manager = Get-ChildItem -Path "$env:ANDROID_SDK_ROOT/cmdline-tools" -Filter sdkmanager.bat -Recurse -File | Select-Object -First 1
           if (-not $manager) { throw "sdkmanager.bat missing in $env:ANDROID_SDK_ROOT" }
           & $manager.FullName --sdk_root="$env:ANDROID_SDK_ROOT" 'platforms;android-35' 'build-tools;35.0.0' 'ndk;29.0.14206865'
