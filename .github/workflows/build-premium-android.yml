@@ -1,0 +1,80 @@
+name: GTA IV Premium Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout premium patch
+        uses: actions/checkout@v4
+        with:
+          path: premium
+          persist-credentials: false
+      - name: Checkout pinned upstream source
+        uses: actions/checkout@v4
+        with:
+          repository: vaduur/LibertyRecompAndroid
+          ref: 4f6ce516eb1cf606dadacaa63c5f63f00f751a55
+          path: upstream
+          persist-credentials: false
+          submodules: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install CMake and Ninja
+        run: python -m pip install 'cmake>=3.29,<5' ninja
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install required SDK and NDK
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;29.0.14206865'
+      - name: Verify upstream source anchors
+        run: python premium/premium_patch/apply.py --root upstream --check-only
+      - name: Apply camera settings and audio experiment
+        run: python premium/premium_patch/apply.py --root upstream
+      - name: Fetch upstream dependencies
+        working-directory: upstream
+        run: python tools/setup_repo.py
+      - name: Build Vulkan driver proxy
+        working-directory: upstream
+        run: bash os/android/scripts/build_driver_proxy.sh
+      - name: Build ARM64 native game engine
+        working-directory: upstream
+        env:
+          STRIP: '1'
+          BUILD_TYPE: Release
+        run: bash os/android/scripts/build_native.sh 2
+      - name: Build debug-signed APK
+        working-directory: upstream
+        run: bash os/android/scripts/build_apk.sh
+      - name: Verify APK
+        shell: pwsh
+        run: |
+          $apk = 'upstream/os/android/app/build/outputs/apk/debug/app-debug.apk'
+          if (!(Test-Path $apk)) { throw 'APK not produced' }
+          Get-Item $apk | Select-Object Name,Length
+      - name: Upload downloadable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Liberty-Premium-S23U-APK
+          path: upstream/os/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
