@@ -42,6 +42,17 @@ jobs:
         run: python -m pip install 'cmake>=3.29,<5' ninja
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Default includes obsolete 'tools' package, removed from Google's repository.
+          packages: 'platform-tools'
+      - name: Normalize Android and Java paths for Git Bash
+        run: |
+          if [[ "${ANDROID_HOME:-}" =~ ^[A-Za-z]: ]]; then
+            echo "ANDROID_HOME=$(cygpath -u "$ANDROID_HOME")" >> "$GITHUB_ENV"
+          fi
+          if [[ "${JAVA_HOME:-}" =~ ^[A-Za-z]: ]]; then
+            echo "JAVA_HOME=$(cygpath -u "$JAVA_HOME")" >> "$GITHUB_ENV"
+          fi
       - name: Install required SDK and NDK
         run: |
           yes | sdkmanager --licenses || true
