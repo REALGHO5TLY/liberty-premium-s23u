@@ -63,6 +63,16 @@ jobs:
           if (-not $manager) { throw "sdkmanager.bat missing in $env:ANDROID_SDK_ROOT" }
           & $manager.FullName --sdk_root="$env:ANDROID_SDK_ROOT" 'platforms;android-35' 'build-tools;35.0.0' 'ndk;29.0.14206865'
           if ($LASTEXITCODE -ne 0) { throw "SDK/NDK installation failed: $LASTEXITCODE" }
+      - name: Force and verify NDK r29 for native CMake
+        run: |
+          set -euo pipefail
+          NDK_DIR="$ANDROID_HOME/ndk/29.0.14206865"
+          test -f "$NDK_DIR/source.properties"
+          grep -Fq 'Pkg.Revision = 29.0.14206865' "$NDK_DIR/source.properties"
+          test -f "$NDK_DIR/build/cmake/android.toolchain.cmake"
+          echo "ANDROID_NDK=$(cygpath -m "$NDK_DIR")" >> "$GITHUB_ENV"
+          echo "NDK_VER=29.0.14206865" >> "$GITHUB_ENV"
+          echo "Pinned NDK at $(cygpath -m "$NDK_DIR")"
       - name: Verify upstream source anchors
         run: python premium/premium_patch/apply.py --root upstream --check-only
       - name: Apply camera settings and audio experiment
@@ -78,7 +88,11 @@ jobs:
         env:
           STRIP: '1'
           BUILD_TYPE: Release
-        run: bash os/android/scripts/build_native.sh 2
+        run: |
+          test -f "$ANDROID_NDK/source.properties"
+          grep -Fq "Pkg.Revision = 29.0.14206865" "$ANDROID_NDK/source.properties"
+          echo "Compiling with $ANDROID_NDK"
+          bash os/android/scripts/build_native.sh 2
       - name: Build debug-signed APK
         working-directory: upstream
         run: bash os/android/scripts/build_apk.sh
