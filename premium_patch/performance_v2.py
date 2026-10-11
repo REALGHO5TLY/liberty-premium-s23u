@@ -127,9 +127,8 @@ def patch_defaults(src, limit):
                       "moderate audio queue depth")
     src = replace_one(src, '--gta4_frame_limit=30',
                       f'--gta4_frame_limit={limit}', "frame-cap control")
-    # Stable world detail: dynamic scaling changes draw distance dynamically,
-    # and can vary scene geometry/fps. Keep the original 1.0 render distance.
-    # Never touch resolution, upscaler, anti-aliasing, effects or populations.
+    # Fixed draw distance at full console quality. Dynamic LOD changes are
+    # disabled; no resolution, traffic, shadow or reflection reductions.
     src = replace_one(src,'--gta4_dynamic_draw_distance=true',
                       '--gta4_dynamic_draw_distance=false',
                       "fixed console draw distance")
@@ -149,16 +148,16 @@ def main():
        'gradle':root/'os/android/app/build.gradle.kts',
     }
     before={k:pp.read_text(encoding='utf-8') for k,pp in paths.items()}
-    for key in ('touch','defaults'):
-        if 'PREMIUM_TOUCH_PATCH_V1' not in before['touch']:
-            raise RuntimeError("Apply premium_patch/apply.py BEFORE performance_v2.py")
+    if 'PREMIUM_TOUCH_PATCH_V1' not in before['touch']:
+        raise RuntimeError("Apply premium_patch/apply.py BEFORE performance_v2.py")
     updated={}
     updated['touch']=patch_overlay(before['touch'])
     updated['audio']=patch_audio(before['audio'])
     updated['defaults']=patch_defaults(before['defaults'],40 if args.mode=='smooth' else 60)
+    package = 'com.libertyrecomp.premium.v2' if args.mode == 'smooth' else 'com.libertyrecomp.premium.v2.high'
     updated['gradle']=replace_one(before['gradle'],
             'applicationId = "com.libertyrecomp.premium"',
-            'applicationId = "com.libertyrecomp.premium.v2"',
+            f'applicationId = "{package}"',
             'separate v2 package identity')
     updated['gradle']=replace_one(updated['gradle'],
             'versionName   = "0.5.8.1-premium1"',
