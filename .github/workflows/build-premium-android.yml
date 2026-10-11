@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      performance_mode:
+        description: "Smooth 40 FPS or test a 60 FPS ceiling (both preserve the same graphics and population)"
+        required: true
+        type: choice
+        default: smooth
+        options:
+          - smooth
+          - high
 
 permissions:
   contents: read
@@ -77,6 +86,10 @@ jobs:
         run: python premium/premium_patch/apply.py --root upstream --check-only
       - name: Apply camera settings and audio experiment
         run: python premium/premium_patch/apply.py --root upstream
+      - name: Verify performance and audio source changes
+        run: python premium/premium_patch/performance_v2.py --root upstream --mode "${{ github.event.inputs.performance_mode || 'smooth' }}" --check-only
+      - name: Apply quality-preserving v2 performance and audio changes
+        run: python premium/premium_patch/performance_v2.py --root upstream --mode "${{ github.event.inputs.performance_mode || 'smooth' }}"
       - name: Fetch upstream dependencies
         working-directory: upstream
         run: python tools/setup_repo.py
@@ -105,7 +118,7 @@ jobs:
       - name: Upload downloadable APK
         uses: actions/upload-artifact@v4
         with:
-          name: Liberty-Premium-S23U-APK
+          name: Liberty-Premium-S23U-v2-${{ github.event.inputs.performance_mode || 'smooth' }}-APK
           path: upstream/os/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
