@@ -19,6 +19,17 @@ permissions:
 
 jobs:
   build:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: smooth
+            label: Smooth 40 FPS
+            slug: Smooth40
+          - mode: high
+            label: High 60 FPS
+            slug: High60
     runs-on: windows-2022
     timeout-minutes: 360
     defaults:
@@ -87,9 +98,27 @@ jobs:
       - name: Apply camera settings and audio experiment
         run: python premium/premium_patch/apply.py --root upstream
       - name: Verify performance and audio source changes
-        run: python premium/premium_patch/performance_v2.py --root upstream --mode "${{ github.event.inputs.performance_mode || 'smooth' }}" --check-only
+        run: python premium/premium_patch/performance_v2.py --root upstream --mode "${{ matrix.mode }}" --check-only
       - name: Apply quality-preserving v2 performance and audio changes
-        run: python premium/premium_patch/performance_v2.py --root upstream --mode "${{ github.event.inputs.performance_mode || 'smooth' }}"
+        run: python premium/premium_patch/performance_v2.py --root upstream --mode "${{ matrix.mode }}"
+      - name: Verify original visual quality and world population
+        run: |
+          set -euo pipefail
+          f=upstream/os/android/app/src/main/assets/default_args.txt
+          for flag in \
+            '--gta4_output_height_cap=720' \
+            '--gta4_native_upscaler=native' \
+            '--gta4_native_anti_aliasing=fxaa' \
+            '--gta4_draw_distance_scale=1.0' \
+            '--gta4_dynamic_draw_distance=false' \
+            '--gta4_shadow_map_base_size=256' \
+            '--gta4_reflection_resolution=original' \
+            '--gta4_traffic_density_scale=0.4' \
+            '--gta4_parked_car_density_scale=0.4' \
+            '--gta4_ped_density_scale=0.4' \
+            '--gta4_scenario_ped_density_scale=0.4'; do
+              grep -Fxq -- "$flag" "$f" || { echo "Refusing quality reduction: missing $flag"; exit 1; }
+          done
       - name: Fetch upstream dependencies
         working-directory: upstream
         run: python tools/setup_repo.py
@@ -118,7 +147,7 @@ jobs:
       - name: Upload downloadable APK
         uses: actions/upload-artifact@v4
         with:
-          name: Liberty-Premium-S23U-v2-${{ github.event.inputs.performance_mode || 'smooth' }}-APK
+          name: Liberty-Premium-S23U-v2-${{ matrix.slug }}-APK
           path: upstream/os/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
